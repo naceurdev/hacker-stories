@@ -1,6 +1,7 @@
+import { useState } from "react";
 
-const Item = ({ item }) =>
-(<li>
+const Item = ({ item }) => {
+return (<li>
   <span>{item.title}</span>
   <span>{item.url}</span>
   <span>{item.author}</span>
@@ -8,21 +9,21 @@ const Item = ({ item }) =>
   <span>{item.points}</span>
 </li>
 )
+}
 
-
-const List = ({ list }) =>
-  <ul>
+const List = ({ list }) => {
+  return <ul>
     {list.map((item) => (
-      <Item item={item} key={item.objectID } />
+      <Item item={item} key={item.objectID} />
     ))}
   </ul>;
+}
 
-const Search = () => {
-  const handleChange = (event) => {
-    console.log(event);
+const Search = ({onSearch, search}) => {
 
-    console.log(event.target.value);
-  }
+  const handleChange = async (event) => {
+    onSearch(event.target.value)
+  };
 
   const handleBlur = () => {
     console.log('Input lost focus');
@@ -31,7 +32,11 @@ const Search = () => {
   return (
     <div>
       <label htmlFor="inputField">Input Field</label>
-      <input id="inputField" type="text" onBlur={handleBlur} onChange={handleChange} />
+      <input id="inputField" type="text" onBlur={handleBlur} onChange={handleChange} value={search}/>
+      <p>
+        Searching for <strong>{search}</strong>
+      </p>
+
     </div>
   )
 };
@@ -56,12 +61,20 @@ const App = () => {
     },
   ];
 
+  const [searchTerm, setSearchTerm] = useState('React');
+
+  const handleSearch = (searchTerm) => {
+    setSearchTerm(searchTerm);
+  }
+
+  const searchedStories = stories.filter((story) => story.title.toLowerCase().includes(searchTerm.toLowerCase()));
+
   return (
     <div>
       <h1>My Hacker Stories</h1>
-      <Search />
+      <Search onSearch={handleSearch} search={searchTerm} />
       <hr />
-      <List list={stories} />
+      <List list={searchedStories} />
     </div>
   )
 };
