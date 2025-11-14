@@ -19,10 +19,10 @@ const List = ({ list }) => {
   </ul>;
 }
 
-const Search = ({onSearch, search}) => {
+const InputWithLabel = ({ id, label, value, type = 'text', onInputChange }) => {
 
   const handleChange = async (event) => {
-    onSearch(event.target.value)
+    onInputChange(event.target.value)
   };
 
   const handleBlur = () => {
@@ -30,14 +30,10 @@ const Search = ({onSearch, search}) => {
   }
 
   return (
-    <div>
-      <label htmlFor="inputField">Input Field</label>
-      <input id="inputField" type="text" onBlur={handleBlur} onChange={handleChange} value={search}/>
-      <p>
-        Searching for <strong>{search}</strong>
-      </p>
-
-    </div>
+    <>
+      <label htmlFor={id}>{label}</label>&nbsp;
+      <input id={id} type={type} onBlur={handleBlur} onChange={handleChange} value={value}/>
+    </>
   )
 };
 
@@ -82,7 +78,7 @@ const App = () => {
   return (
     <div>
       <h1>My Hacker Stories</h1>
-      <Search onSearch={handleSearch} search={searchTerm} />
+      <InputWithLabel id="search" label="Search" value={searchTerm} onInputChange={handleSearch} />
       <hr />
       <List list={searchedStories} />
     </div>
