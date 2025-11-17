@@ -1,6 +1,7 @@
-import { useEffect, useState, Dispatch, SetStateAction, useRef } from "react";
+import { useEffect, useState, Dispatch, SetStateAction, useRef, useMemo } from "react";
 import { Dropdown, SliderXWithRef, SliderXWithState, SliderY } from "./ReusableComponents";
 import './App.css';
+import { Sortable } from "./components/Sortable";
 
 type Story = {
   title: string;
@@ -98,8 +99,26 @@ const App = () => {
     },
   ];
 
+  const getAsyncStories = async () => {
+    return new Promise((resolve: (value: {data: {stories: Story[]}}) => void) => 
+      setTimeout(() => resolve({data: {stories: initialStories}}), 2000));
+  }
+
   const [searchTerm, setSearchTerm] = useStorageState('search', 'React');
-  const [stories, setStories] = useState(initialStories);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getAsyncStories().then(result => {
+      setStories(result.data.stories);
+      setIsLoading(false);
+    }).catch(() => {
+      setIsError(true);
+      setIsLoading(false);
+    })
+  }, [])
 
   const handleSearch = (searchTerm: string) => {
     setSearchTerm(searchTerm);
@@ -109,7 +128,11 @@ const App = () => {
     setStories(stories.filter((item) => item.objectID !== objectId));
   }
 
-  const searchedStories = stories.filter((story) => story.title.toLowerCase().includes(searchTerm.toLowerCase()));
+  const searchedStories = useMemo(() => stories.filter(
+    (story) => story.title.toLowerCase().includes(searchTerm.toLowerCase())), 
+    [stories, searchTerm]);
+
+  
 
   return (
     <div>
@@ -118,9 +141,14 @@ const App = () => {
         <strong>Search :</strong>
       </InputWithLabel>
       <hr />
+      {isError && <p>Something went wrong ...</p>}
+      {isLoading ? (<p>Loading ...</p>) :
       <List list={searchedStories} onRemoveItem={handleRemoveItem} />
+      }
       <hr />
       <SliderXWithRef initial={10} max={25} />
+      <hr />
+      <Sortable />
       <hr />
       <SliderY />
     </div>
