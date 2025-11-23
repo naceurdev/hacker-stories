@@ -1,5 +1,5 @@
-import { useEffect, useState, Dispatch, SetStateAction, useRef, useMemo } from "react";
-import { Dropdown, SliderXWithRef, SliderXWithState, SliderY } from "./ReusableComponents";
+import { useEffect, useState, Dispatch, SetStateAction, useRef, useMemo, useReducer } from "react";
+import { SliderXWithRef, SliderY } from "./ReusableComponents";
 import './App.css';
 import { Sortable } from "./components/Sortable";
 
@@ -12,19 +12,19 @@ type Story = {
   objectID: string;
 }
 
-const Item = ({ item, onRemoveItem }: { item: Story, onRemoveItem: (objectId: string) => void }) => {
+const Item = ({ item, onRemoveItem }: { item: Story, onRemoveItem: (item: Story) => void }) => {
   return (<li>
-    <span>{item.title}</span>
-    <span>{item.url}</span>
-    <span>{item.author}</span>
-    <span>{item.num_comments}</span>
-    <span>{item.points}</span>
-    <button type="button" onClick={() => onRemoveItem(item.objectID)}>Remove</button>
+    <span>{item.title} </span>
+    <span>{item.url} </span>
+    <span>{item.author} </span>
+    <span>{item.num_comments} </span>
+    <span>{item.points} </span>
+    <button type="button" onClick={() => onRemoveItem(item)}>Remove</button>
   </li>
   )
 }
 
-const List = ({ list, onRemoveItem }: { list: Story[], onRemoveItem: (objectId: string) => void }) => {
+const List = ({ list, onRemoveItem }: { list: Story[], onRemoveItem: (item: Story) => void }) => {
   return <ul>
     {list.map((item) => (
       <Item item={item} key={item.objectID} onRemoveItem={onRemoveItem} />
@@ -79,60 +79,101 @@ const useStorageState = (key: string, initialState: string): [string, Dispatch<S
   return [value, setValue];
 }
 
-const App = () => {
-  const initialStories = [
-    {
-      title: 'React',
-      url: 'https://react.dev/',
-      author: 'Jordan Walke',
-      num_comments: 3,
-      points: 4,
-      objectID: '0',
-    },
-    {
-      title: 'Redux',
-      url: 'https://redux.js.org/',
-      author: 'Dan Abramov, Andrew Clark',
-      num_comments: 2,
-      points: 5,
-      objectID: '1',
-    },
-  ];
+const API_ENDPOINT = 'https://hn.algolia.com/api/v1/search?query=';
 
-  const getAsyncStories = async () => {
-    return new Promise((resolve: (value: {data: {stories: Story[]}}) => void) => 
-      setTimeout(() => resolve({data: {stories: initialStories}}), 2000));
+const getAsyncStories = async () => {
+  return await fetch(`${API_ENDPOINT}react`)
+  .then(res => res.json());
+}
+
+const REMOVE_STORY = 'REMOVE_STORY';
+
+const STORIES_FETCH_INIT = 'STORIES_FETCH_INIT';
+const STORIES_FETCH_SUCCESS = 'STORIES_FETCH_SUCCESS';
+const STORIES_FETCH_FAILURE = 'STORIES_FETCH_FAILURE';
+
+type StoriesInitAction = {
+  type: 'STORIES_FETCH_INIT';
+};
+
+type StoriesSuccessAction = {
+  type: 'STORIES_FETCH_INIT' | 'STORIES_FETCH_SUCCESS' | 'STORIES_FETCH_FAILURE';
+  payload: Story[];
+};
+
+type StoriesErrorAction = {
+  type: 'STORIES_FETCH_FAILURE';
+};
+
+type StoriesRemoveAction = {
+  type: 'REMOVE_STORY';
+  payload: Story;
+};
+
+type StoriesAction = StoriesInitAction | StoriesSuccessAction | StoriesErrorAction | StoriesRemoveAction;
+
+type StoriesState = {
+  data: Story[];
+  isLoading: boolean;
+  isError: boolean;
+}
+
+
+const storiesReducer = (state: StoriesState, action: StoriesAction) => {
+  switch (action.type) {
+    case STORIES_FETCH_INIT:
+      return { ...state, isLoading: true, isError: false };
+    case STORIES_FETCH_SUCCESS:
+      return { data: action.payload, isLoading: false, isError: false };
+    case STORIES_FETCH_FAILURE:
+      return { ...state, isLoading: false, isError: true };
+    case REMOVE_STORY:
+      return {
+        ...state,
+        data: state.data.filter((story) => story.objectID !== action.payload.objectID),
+      };
+    default:
+      throw new Error();
   }
+}
 
+const App = () => {
   const [searchTerm, setSearchTerm] = useStorageState('search', 'React');
-  const [stories, setStories] = useState<Story[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
+  const [stories, dispatchStories] = useReducer(
+    storiesReducer,
+    { data: [], isLoading: false, isError: false });
 
   useEffect(() => {
-    setIsLoading(true);
-    getAsyncStories().then(result => {
-      setStories(result.data.stories);
-      setIsLoading(false);
-    }).catch(() => {
-      setIsError(true);
-      setIsLoading(false);
-    })
+    dispatchStories({ type: STORIES_FETCH_INIT });
+    console.log('azdaz');
+    
+    getAsyncStories()
+      .then(result => {
+        dispatchStories({
+          type: STORIES_FETCH_SUCCESS,
+          payload: result.hits
+        });
+      }).catch(() => {
+        dispatchStories({ type: STORIES_FETCH_FAILURE });
+      })
   }, [])
 
   const handleSearch = (searchTerm: string) => {
     setSearchTerm(searchTerm);
   }
 
-  const handleRemoveItem = (objectId: string) => {
-    setStories(stories.filter((item) => item.objectID !== objectId));
+  const handleRemoveItem = (item: Story) => {
+    dispatchStories({
+      type: REMOVE_STORY,
+      payload: item,
+    });
   }
 
-  const searchedStories = useMemo(() => stories.filter(
-    (story) => story.title.toLowerCase().includes(searchTerm.toLowerCase())), 
+  const searchedStories = useMemo(() => stories.data.filter(
+    (story) => story.title.toLowerCase().includes(searchTerm.toLowerCase())),
     [stories, searchTerm]);
 
-  
+
 
   return (
     <div>
@@ -141,9 +182,9 @@ const App = () => {
         <strong>Search :</strong>
       </InputWithLabel>
       <hr />
-      {isError && <p>Something went wrong ...</p>}
-      {isLoading ? (<p>Loading ...</p>) :
-      <List list={searchedStories} onRemoveItem={handleRemoveItem} />
+      {stories.isError && <p>Something went wrong ...</p>}
+      {stories.isLoading ? (<p>Loading ...</p>) :
+        <List list={searchedStories} onRemoveItem={handleRemoveItem} />
       }
       <hr />
       <SliderXWithRef initial={10} max={25} />
