@@ -81,8 +81,8 @@ const useStorageState = (key: string, initialState: string): [string, Dispatch<S
 
 const API_ENDPOINT = 'https://hn.algolia.com/api/v1/search?query=';
 
-const getAsyncStories = async () => {
-  return await fetch(`${API_ENDPOINT}react`)
+const getAsyncStories = async (searchTerm: string) => {
+  return await fetch(`${API_ENDPOINT}${searchTerm}`)
   .then(res => res.json());
 }
 
@@ -144,10 +144,10 @@ const App = () => {
     { data: [], isLoading: false, isError: false });
 
   useEffect(() => {
+    if (!searchTerm) return;
     dispatchStories({ type: STORIES_FETCH_INIT });
-    console.log('azdaz');
     
-    getAsyncStories()
+    getAsyncStories(searchTerm)
       .then(result => {
         dispatchStories({
           type: STORIES_FETCH_SUCCESS,
@@ -156,7 +156,7 @@ const App = () => {
       }).catch(() => {
         dispatchStories({ type: STORIES_FETCH_FAILURE });
       })
-  }, [])
+  }, [searchTerm])
 
   const handleSearch = (searchTerm: string) => {
     setSearchTerm(searchTerm);
